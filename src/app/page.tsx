@@ -1,5 +1,18 @@
 "use client";
 
+interface Item {
+  name: string | null | undefined;
+  price: number | null | undefined;
+  id: string | null | undefined;
+}
+
+interface ItemOp {
+  name?: string | null | undefined;
+  price?: number | null | undefined;
+  id?: string | null | undefined;
+}
+
+import { UserAuth } from "./context/AuthContext";
 import { useState, useEffect } from "react";
 import {
   collection,
@@ -13,18 +26,32 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
-interface Item {
-  name?: string | undefined;
-  price?: number | undefined;
-  id?: string | undefined;
-}
-
 export default function Home() {
-  const [items, setItems] = useState<Array<Item>>();
+  const { user, googleSignIn, logOut } = UserAuth();
+  const [items, setItems] = useState<Array<Item>>(null!);
   const [total, setTotal] = useState<number>(0);
-  const [newItem, setNewItem] = useState<Item>();
+  const [newItem, setNewItem] = useState<Item | ItemOp>();
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Handle sign in with gogole
+  const handleSignIn = async () => {
+    try {
+      await googleSignIn();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  // Handle sign out with gogole
+  const handleSignOut = async () => {
+    try {
+      await logOut();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
   // Handle change in inputs values.
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -43,7 +70,7 @@ export default function Home() {
           name: newItem.name,
           price: newItem.price,
         });
-        setNewItem({ name: undefined, price: undefined, id: undefined });
+        setNewItem({ name: "", price: null, id: "" });
       } catch (e: any) {
         setError(e.message);
       }
@@ -77,12 +104,36 @@ export default function Home() {
   }, []);
 
   // Delete item from database.
-  const handleDelete = async (id: string | undefined) => {
+  const handleDelete = async (id: any) => {
     if (id === undefined) return setError("Item not found.");
     await deleteDoc(doc(db, "items", id));
   };
 
-  return (
+  return !user ? (
+    <main className="flex min-h-screen flex-col items-center justify-center sm:p-24 p-4">
+      <section className="z-10 max-w-5xl w-full items-center justify-center font-mono text-sm">
+        <>
+          <h2 className="text-center p-4 text-2xl md:text-4xl tracking-wider font-semibold">
+            Login with Google
+          </h2>
+          <button
+            className="text-white bg-slate-900 hover:bg-slate-950 p-3 text-base md:text-xl col-span-3"
+            type="submit"
+            onClick={handleSignIn}
+          >
+            Sign In
+          </button>
+          <button
+            className="text-white bg-slate-900 hover:bg-slate-950 p-3 text-base md:text-xl col-span-3"
+            type="submit"
+            onClick={handleSignIn}
+          >
+            Sign Up
+          </button>
+        </>
+      </section>
+    </main>
+  ) : (
     <main className="flex min-h-screen flex-col items-center justify-between sm:p-24 p-4">
       <section className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
         <h1 className="text-4xl p-4 text-center">Expense Tracker</h1>
@@ -108,7 +159,7 @@ export default function Home() {
                 type="text"
                 name="name"
                 placeholder="Enter Item"
-                value={newItem?.name === undefined ? "" : newItem?.name}
+                value={newItem?.name === null ? "" : newItem?.name}
                 onChange={handleChange}
               />
               <input
@@ -116,7 +167,7 @@ export default function Home() {
                 type="number"
                 name="price"
                 placeholder="Enter $"
-                value={newItem?.price === undefined ? "" : newItem?.price}
+                value={newItem?.price === null ? "" : newItem?.price}
                 onChange={handleChange}
               />
               <button
@@ -132,11 +183,11 @@ export default function Home() {
                 return (
                   <li
                     className="my-4 w-full flex justify-between bg-slate-950"
-                    key={item.id}
+                    key={item?.id}
                   >
                     <div className="p-4 w-full flex justify-between">
-                      <span className="capitalize">{item.name}</span>
-                      <span className="">${item.price}</span>
+                      <span className="capitalize">{item?.name}</span>
+                      <span className="">${item?.price}</span>
                     </div>
 
                     <button
@@ -149,7 +200,6 @@ export default function Home() {
                 );
               })}
             </ul>
-
             {items!!?.length < 1 && !loading ? (
               ""
             ) : (
@@ -160,6 +210,12 @@ export default function Home() {
             )}
           </section>
         )}
+        <button
+          className="text-white bg-slate-900 hover:bg-slate-950 p-3 text-base md:text-xl"
+          onClick={handleSignOut}
+        >
+          Log Out
+        </button>
       </section>
     </main>
   );
